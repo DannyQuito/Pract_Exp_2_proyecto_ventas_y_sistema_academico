@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from models import Cliente, Producto, Venta
+from models import Estudiante, Materia, Matricula
 from shared.json_manager import GestorJSON
 from shared.herramientas import es_email_valido
 
@@ -42,22 +42,22 @@ class CrudBase(ABC):
 
 
 # =====================================================================
-# CONTROLADOR DE CLIENTES
+# CONTROLADOR DE ESTUDIANTES
 # =====================================================================
-class ClienteController(CrudBase):
+class EstudianteController(CrudBase):
 
-    def __init__(self, archivo="data/clientes.json"):
+    def __init__(self, archivo="data/estudiantes.json"):
         self.gestor = GestorJSON(archivo)
 
-        # Leemos el JSON y convertimos cada diccionario en un objeto Cliente
+        # Leemos el JSON y convertimos cada diccionario en un objeto Estudiante
         self.lista = []
         for datos in self.gestor.leer():
-            self.lista.append(Cliente.desde_diccionario(datos))
+            self.lista.append(Estudiante.desde_diccionario(datos))
 
     def guardar(self):
         datos = []
-        for cliente in self.lista:
-            datos.append(cliente.a_diccionario())
+        for estudiante in self.lista:
+            datos.append(estudiante.a_diccionario())
         self.gestor.guardar(datos)
 
     def validar(self, datos, id_actual=None):
@@ -72,8 +72,8 @@ class ClienteController(CrudBase):
             email = str(datos["email"]).strip().lower()
             if not es_email_valido(email):
                 return f"Email inválido: '{email}'"
-            # CONJUNTO con los emails de los OTROS clientes
-            usados = {c.email for c in self.lista if c.id != id_actual}
+            # CONJUNTO con los emails de los OTROS estudiantes
+            usados = {e.email for e in self.lista if e.id != id_actual}
             if email in usados:
                 return "Ese email ya está registrado"
 
@@ -85,10 +85,10 @@ class ClienteController(CrudBase):
     def leer(self):
         return self.lista
 
-    def obtener(self, id_cliente):
-        for cliente in self.lista:
-            if cliente.id == id_cliente:
-                return cliente
+    def obtener(self, id_estudiante):
+        for estudiante in self.lista:
+            if estudiante.id == id_estudiante:
+                return estudiante
         return None
 
     def buscar(self, texto):
@@ -97,20 +97,20 @@ class ClienteController(CrudBase):
         if texto == "":
             return encontrados
 
-        for cliente in self.lista:
-            if (texto in cliente.nombre.lower()
-                    or texto in cliente.apellido.lower()
-                    or texto in cliente.email
-                    or texto in cliente.telefono
-                    or texto in cliente.ciudad.lower()):
-                encontrados.append(cliente)
+        for estudiante in self.lista:
+            if (texto in estudiante.nombre.lower()
+                    or texto in estudiante.apellido.lower()
+                    or texto in estudiante.email
+                    or texto in estudiante.telefono
+                    or texto in estudiante.carrera.lower()):
+                encontrados.append(estudiante)
         return encontrados
 
     def siguiente(self):
         mayor = 0
-        for cliente in self.lista:
-            if cliente.id > mayor:
-                mayor = cliente.id
+        for estudiante in self.lista:
+            if estudiante.id > mayor:
+                mayor = estudiante.id
         return mayor + 1
 
     def crear(self, datos):
@@ -118,124 +118,125 @@ class ClienteController(CrudBase):
         if error:
             return False, error
 
-        cliente = Cliente(self.siguiente(),
-                          str(datos["nombre"]).strip().title(),
-                          str(datos["apellido"]).strip().title(),
-                          str(datos["email"]).strip().lower(),
-                          str(datos.get("telefono", "")).strip(),
-                          str(datos.get("ciudad", "")).strip().title())
-        self.lista.append(cliente)
+        estudiante = Estudiante(self.siguiente(),
+                                str(datos["nombre"]).strip().title(),
+                                str(datos["apellido"]).strip().title(),
+                                str(datos["email"]).strip().lower(),
+                                str(datos.get("telefono", "")).strip(),
+                                str(datos.get("carrera", "")).strip().title())
+        self.lista.append(estudiante)
         self.guardar()
-        return True, f"Cliente creado: {cliente.etiqueta()}"
+        return True, f"Estudiante creado: {estudiante.etiqueta()}"
 
-    def actualizar(self, id_cliente, datos):
-        cliente = self.obtener(id_cliente)
-        if cliente is None:
-            return False, f"No existe un cliente con id {id_cliente}"
+    def actualizar(self, id_estudiante, datos):
+        estudiante = self.obtener(id_estudiante)
+        if estudiante is None:
+            return False, f"No existe un estudiante con id {id_estudiante}"
         if not datos:
             return False, "No se indicó ningún cambio"
 
-        # DIFERENCIA de conjuntos: campos que no existen en un cliente
-        permitidos = {"nombre", "apellido", "email", "telefono", "ciudad"}
+        # DIFERENCIA de conjuntos: campos que no existen en un estudiante
+        permitidos = {"nombre", "apellido", "email", "telefono", "carrera"}
         desconocidos = set(datos) - permitidos
         if desconocidos:
             return False, f"Campos no válidos: {', '.join(sorted(desconocidos))}"
 
         # Se valida ANTES de tocar el objeto: si algo falla, no cambia nada
-        error = self.validar(datos, id_cliente)
+        error = self.validar(datos, id_estudiante)
         if error:
             return False, error
 
         for campo, valor in datos.items():
             valor = str(valor).strip()
-            if campo in ("nombre", "apellido", "ciudad"):
+            if campo in ("nombre", "apellido", "carrera"):
                 valor = valor.title()
             elif campo == "email":
                 valor = valor.lower()
-            setattr(cliente, campo, valor)
+            setattr(estudiante, campo, valor)
 
         self.guardar()
-        return True, f"Cliente {id_cliente} actualizado"
+        return True, f"Estudiante {id_estudiante} actualizado"
 
-    def eliminar(self, id_cliente):
-        cliente = self.obtener(id_cliente)
-        if cliente is None:
-            return False, f"No existe un cliente con id {id_cliente}"
+    def eliminar(self, id_estudiante):
+        estudiante = self.obtener(id_estudiante)
+        if estudiante is None:
+            return False, f"No existe un estudiante con id {id_estudiante}"
 
-        self.lista.remove(cliente)
+        self.lista.remove(estudiante)
         self.guardar()
-        return True, f"Cliente {id_cliente} eliminado"
+        return True, f"Estudiante {id_estudiante} eliminado"
 
-    # --- propio de clientes ---
-    def ciudades(self):
-        """CONJUNTO de ciudades: sin repetidos. sorted() lo devuelve como lista."""
-        return sorted({c.ciudad for c in self.lista if c.ciudad != ""})
+    # --- propio de estudiantes ---
+    def carreras(self):
+        """CONJUNTO de carreras: sin repetidos. sorted() lo devuelve como lista."""
+        return sorted({e.carrera for e in self.lista if e.carrera != ""})
 
 
 # =====================================================================
-# CONTROLADOR DE PRODUCTOS
+# CONTROLADOR DE MATERIAS
 # =====================================================================
-class ProductoController(CrudBase):
+class MateriaController(CrudBase):
 
-    def __init__(self, archivo="data/productos.json"):
+    def __init__(self, archivo="data/materias.json"):
         self.gestor = GestorJSON(archivo)
 
         self.lista = []
         for datos in self.gestor.leer():
-            self.lista.append(Producto.desde_diccionario(datos))
+            self.lista.append(Materia.desde_diccionario(datos))
 
     def guardar(self):
         datos = []
-        for producto in self.lista:
-            datos.append(producto.a_diccionario())
+        for materia in self.lista:
+            datos.append(materia.a_diccionario())
         self.gestor.guardar(datos)
 
     def validar(self, datos, id_actual=None):
         if id_actual is None:
-            for campo in ("nombre", "precio"):
+            for campo in ("nombre", "creditos"):
                 if str(datos.get(campo, "")).strip() == "":
                     return f"El campo {campo} es obligatorio"
 
-        # es_precio_valido es el método ESTÁTICO de Producto
-        if "precio" in datos and not Producto.es_precio_valido(datos["precio"]):
-            return f"Precio inválido: '{datos['precio']}' (debe ser un número mayor a 0)"
+        # es_creditos_valido es el método ESTÁTICO de Materia
+        if "creditos" in datos and not Materia.es_creditos_valido(datos["creditos"]):
+            return (f"Créditos inválidos: '{datos['creditos']}' "
+                    f"(entero entre 1 y {Materia.MAX_CREDITOS})")
 
-        stock = str(datos.get("stock", "")).strip()
-        if stock != "" and not stock.isdigit():
-            return "El stock debe ser un número entero positivo"
+        cupo = str(datos.get("cupo", "")).strip()
+        if cupo != "" and not cupo.isdigit():
+            return "El cupo debe ser un número entero positivo"
 
         if "nombre" in datos:
             nombre = str(datos["nombre"]).strip().title()
-            for otro in self.lista:
-                if otro.nombre == nombre and otro.id != id_actual:
-                    return f"Ya existe un producto llamado {nombre}"
+            for otra in self.lista:
+                if otra.nombre == nombre and otra.id != id_actual:
+                    return f"Ya existe una materia llamada {nombre}"
         return None
 
     def leer(self):
         return self.lista
 
-    def obtener(self, id_producto):
-        for producto in self.lista:
-            if producto.id == id_producto:
-                return producto
+    def obtener(self, id_materia):
+        for materia in self.lista:
+            if materia.id == id_materia:
+                return materia
         return None
 
     def buscar(self, texto):
         texto = texto.strip().lower()
-        encontrados = []
+        encontradas = []
         if texto == "":
-            return encontrados
+            return encontradas
 
-        for producto in self.lista:
-            if texto in producto.nombre.lower():
-                encontrados.append(producto)
-        return encontrados
+        for materia in self.lista:
+            if texto in materia.nombre.lower():
+                encontradas.append(materia)
+        return encontradas
 
     def siguiente(self):
         mayor = 0
-        for producto in self.lista:
-            if producto.id > mayor:
-                mayor = producto.id
+        for materia in self.lista:
+            if materia.id > mayor:
+                mayor = materia.id
         return mayor + 1
 
     def crear(self, datos):
@@ -243,198 +244,239 @@ class ProductoController(CrudBase):
         if error:
             return False, error
 
-        # Si no escribieron el stock, empieza en 0
-        stock = str(datos.get("stock", "")).strip()
-        producto = Producto(self.siguiente(),
-                            str(datos["nombre"]).strip().title(),
-                            float(datos["precio"]),
-                            int(stock) if stock != "" else 0)
-        self.lista.append(producto)
+        # Si no escribieron el cupo, empieza en 0
+        cupo = str(datos.get("cupo", "")).strip()
+        materia = Materia(self.siguiente(),
+                          str(datos["nombre"]).strip().title(),
+                          int(datos["creditos"]),
+                          int(cupo) if cupo != "" else 0)
+        self.lista.append(materia)
         self.guardar()
-        return True, f"Producto creado: {producto.etiqueta()}"
+        return True, f"Materia creada: {materia.etiqueta()}"
 
-    def actualizar(self, id_producto, datos):
-        producto = self.obtener(id_producto)
-        if producto is None:
-            return False, f"No existe un producto con id {id_producto}"
+    def actualizar(self, id_materia, datos):
+        materia = self.obtener(id_materia)
+        if materia is None:
+            return False, f"No existe una materia con id {id_materia}"
         if not datos:
             return False, "No se indicó ningún cambio"
 
-        desconocidos = set(datos) - {"nombre", "precio", "stock"}
+        desconocidos = set(datos) - {"nombre", "creditos", "cupo"}
         if desconocidos:
             return False, f"Campos no válidos: {', '.join(sorted(desconocidos))}"
 
-        error = self.validar(datos, id_producto)
+        error = self.validar(datos, id_materia)
         if error:
             return False, error
 
         if "nombre" in datos:
-            producto.nombre = str(datos["nombre"]).strip().title()
-        if "precio" in datos:
-            producto.precio = float(datos["precio"])
-        if "stock" in datos:
-            producto.stock = int(datos["stock"])
+            materia.nombre = str(datos["nombre"]).strip().title()
+        if "creditos" in datos:
+            materia.creditos = int(datos["creditos"])
+        if "cupo" in datos:
+            materia.cupo = int(datos["cupo"])
 
         self.guardar()
-        return True, f"Producto {id_producto} actualizado"
+        return True, f"Materia {id_materia} actualizada"
 
-    def eliminar(self, id_producto):
-        producto = self.obtener(id_producto)
-        if producto is None:
-            return False, f"No existe un producto con id {id_producto}"
+    def eliminar(self, id_materia):
+        materia = self.obtener(id_materia)
+        if materia is None:
+            return False, f"No existe una materia con id {id_materia}"
 
-        self.lista.remove(producto)
+        self.lista.remove(materia)
         self.guardar()
-        return True, f"Producto {id_producto} eliminado"
+        return True, f"Materia {id_materia} eliminada"
 
-    # --- propio de productos ---
-    def con_stock_bajo(self):
-        bajos = []
-        for producto in self.lista:
-            if producto.stock_bajo():
-                bajos.append(producto)
-        return bajos
+    # --- propio de materias ---
+    def con_cupo_bajo(self):
+        bajas = []
+        for materia in self.lista:
+            if materia.cupo_bajo():
+                bajas.append(materia)
+        return bajas
 
 
 # =====================================================================
-# CONTROLADOR DE VENTAS
+# CONTROLADOR DE MATRÍCULAS
 # =====================================================================
-class VentaController(CrudBase):
+class MatriculaController(CrudBase):
 
-    def __init__(self, clientes, productos, archivo="data/ventas.json"):
-        # La venta USA a los otros dos controladores.
+    def __init__(self, estudiantes, materias, archivo="data/matriculas.json"):
+        # La matrícula USA a los otros dos controladores.
         # Hay que pasarle los MISMOS que usa main.py.
-        self.clientes = clientes
-        self.productos = productos
+        self.estudiantes = estudiantes
+        self.materias = materias
         self.gestor = GestorJSON(archivo)
 
         self.lista = []
         for datos in self.gestor.leer():
-            self.lista.append(Venta.desde_diccionario(datos))
+            self.lista.append(Matricula.desde_diccionario(datos))
 
     def guardar(self):
         datos = []
-        for venta in self.lista:
-            datos.append(venta.a_diccionario())
+        for matricula in self.lista:
+            datos.append(matricula.a_diccionario())
         self.gestor.guardar(datos)
 
     def validar(self, datos):
         try:
-            cliente_id = int(datos.get("cliente_id", 0))
-            producto_id = int(datos.get("producto_id", 0))
-            cantidad = int(datos.get("cantidad", 0))
+            estudiante_id = int(datos.get("estudiante_id", 0))
+            materia_id = int(datos.get("materia_id", 0))
         except (TypeError, ValueError):
-            return "cliente_id, producto_id y cantidad deben ser números enteros"
+            return "estudiante_id y materia_id deben ser números enteros"
 
-        if cantidad <= 0:
-            return "La cantidad debe ser mayor a 0"
-        if self.clientes.obtener(cliente_id) is None:
-            return f"No existe un cliente con id {cliente_id}"
+        if self.estudiantes.obtener(estudiante_id) is None:
+            return f"No existe un estudiante con id {estudiante_id}"
 
-        producto = self.productos.obtener(producto_id)
-        if producto is None:
-            return f"No existe un producto con id {producto_id}"
-        if not producto.hay_stock(cantidad):
-            return (f"Stock insuficiente de {producto.nombre}: "
-                    f"hay {producto.stock}, piden {cantidad}")
+        materia = self.materias.obtener(materia_id)
+        if materia is None:
+            return f"No existe una materia con id {materia_id}"
+
+        # Un estudiante no puede matricularse dos veces en la misma materia
+        for m in self.lista:
+            if m.estudiante_id == estudiante_id and m.materia_id == materia_id:
+                return f"El estudiante ya está matriculado en {materia.nombre}"
+
+        if not materia.hay_cupo():
+            return f"No hay cupo disponible en {materia.nombre}"
         return None
 
     def leer(self):
         return self.lista
 
-    def obtener(self, id_venta):
-        for venta in self.lista:
-            if venta.id == id_venta:
-                return venta
+    def obtener(self, id_matricula):
+        for matricula in self.lista:
+            if matricula.id == id_matricula:
+                return matricula
         return None
 
     def buscar(self, texto):
-        # Las ventas se buscan por fecha, ej: "2026-09"
+        # Las matrículas se buscan por fecha, ej: "2026-10"
         texto = texto.strip()
         encontradas = []
         if texto == "":
             return encontradas
 
-        for venta in self.lista:
-            if texto in venta.fecha:
-                encontradas.append(venta)
+        for matricula in self.lista:
+            if texto in matricula.fecha:
+                encontradas.append(matricula)
         return encontradas
 
     def siguiente(self):
         mayor = 0
-        for venta in self.lista:
-            if venta.id > mayor:
-                mayor = venta.id
+        for matricula in self.lista:
+            if matricula.id > mayor:
+                mayor = matricula.id
         return mayor + 1
 
     def crear(self, datos):
-        # datos = {"cliente_id": 1, "producto_id": 2, "cantidad": 3}
+        # datos = {"estudiante_id": 1, "materia_id": 2}
         error = self.validar(datos)
         if error:
             return False, error
 
-        producto = self.productos.obtener(int(datos["producto_id"]))
-        venta = Venta(self.siguiente(),
-                      int(datos["cliente_id"]),
-                      producto.id,
-                      int(datos["cantidad"]),
-                      producto.precio)          # foto del precio del momento
+        materia = self.materias.obtener(int(datos["materia_id"]))
+        matricula = Matricula(self.siguiente(),
+                              int(datos["estudiante_id"]),
+                              materia.id)
 
-        producto.descontar_stock(venta.cantidad)
-        self.productos.guardar()                # guarda el stock nuevo en productos.json
-        self.lista.append(venta)
-        self.guardar()                          # guarda la venta en ventas.json
-        return True, f"Venta {venta.id} registrada por ${venta.calcular_total():.2f}"
+        materia.ocupar_cupo()
+        self.materias.guardar()                 # guarda el cupo nuevo en materias.json
+        self.lista.append(matricula)
+        self.guardar()                          # guarda la matrícula en matriculas.json
+        return True, f"Matrícula {matricula.id} registrada en {materia.nombre}"
 
-    def actualizar(self, id_venta, datos):
-        # Una venta registrada no se modifica: se anula y se registra otra
-        return False, "Las ventas no se pueden modificar: anúlela y registre otra"
+    def actualizar(self, id_matricula, datos):
+        """Lo único que se modifica de una matrícula es su nota."""
+        matricula = self.obtener(id_matricula)
+        if matricula is None:
+            return False, f"No existe la matrícula {id_matricula}"
+        if not datos:
+            return False, "No se indicó ningún cambio"
 
-    def eliminar(self, id_venta):
-        """Anular una venta: se borra y el stock vuelve al producto."""
-        venta = self.obtener(id_venta)
-        if venta is None:
-            return False, f"No existe la venta {id_venta}"
+        desconocidos = set(datos) - {"nota"}
+        if desconocidos:
+            return False, f"Campos no válidos: {', '.join(sorted(desconocidos))}"
 
-        producto = self.productos.obtener(venta.producto_id)
-        if producto is not None:
-            producto.devolver_stock(venta.cantidad)
-            self.productos.guardar()
+        # es_nota_valida es el método ESTÁTICO de Materia
+        if not Materia.es_nota_valida(datos["nota"]):
+            return False, (f"Nota inválida: '{datos['nota']}' "
+                           f"(debe estar entre 0 y {Materia.NOTA_MAXIMA})")
 
-        self.lista.remove(venta)
+        matricula.calificar(datos["nota"])
         self.guardar()
-        return True, f"Venta {id_venta} anulada y stock devuelto"
+        return True, f"Nota registrada: {matricula.nota:.2f} ({matricula.estado()})"
 
-    # --- propio de ventas ---
-    def comprobante(self, id_venta):
-        venta = self.obtener(id_venta)
-        if venta is None:
+    def eliminar(self, id_matricula):
+        """Retirar una matrícula: se borra y el cupo vuelve a la materia."""
+        matricula = self.obtener(id_matricula)
+        if matricula is None:
+            return False, f"No existe la matrícula {id_matricula}"
+
+        materia = self.materias.obtener(matricula.materia_id)
+        if materia is not None:
+            materia.liberar_cupo()
+            self.materias.guardar()
+
+        self.lista.remove(matricula)
+        self.guardar()
+        return True, f"Matrícula {id_matricula} retirada y cupo devuelto"
+
+    # --- propio de matrículas ---
+    def matriculas_de(self, id_estudiante):
+        encontradas = []
+        for matricula in self.lista:
+            if matricula.estudiante_id == id_estudiante:
+                encontradas.append(matricula)
+        return encontradas
+
+    def promedio_de(self, id_estudiante):
+        """Promedio de las notas ya registradas; None si no tiene ninguna."""
+        notas = [m.nota for m in self.matriculas_de(id_estudiante) if m.nota is not None]
+        if not notas:
+            return None
+        return round(sum(notas) / len(notas), 2)
+
+    def promedio_general(self):
+        notas = [m.nota for m in self.lista if m.nota is not None]
+        if not notas:
+            return None
+        return round(sum(notas) / len(notas), 2)
+
+    def reporte(self, id_estudiante):
+        """Récord académico del estudiante. None si el estudiante no existe."""
+        estudiante = self.estudiantes.obtener(id_estudiante)
+        if estudiante is None:
             return None
 
-        cliente = self.clientes.obtener(venta.cliente_id)
-        producto = self.productos.obtener(venta.producto_id)
-        total = venta.calcular_total()
+        propias = self.matriculas_de(id_estudiante)
+        texto = f"RÉCORD ACADÉMICO — {estudiante.nombre_completo()}\n"
+        texto += f"Carrera : {estudiante.carrera or 'sin carrera'}\n"
+        texto += "-" * 52 + "\n"
 
-        texto = f"COMPROBANTE #{venta.id}   fecha: {venta.fecha}\n"
-        texto += f"Cliente : {cliente.nombre_completo() if cliente else 'eliminado'}\n"
-        texto += f"Producto: {producto.nombre if producto else 'eliminado'}\n"
-        texto += f"Cantidad: {venta.cantidad} x ${venta.precio_unitario:.2f}\n"
-        texto += "-" * 42 + "\n"
-        texto += f"SUBTOTAL: ${total:.2f}\n"
-        texto += f"TOTAL con IVA: ${Producto.con_iva(total):.2f}"
+        creditos_aprobados = 0
+        if not propias:
+            texto += "Sin materias matriculadas\n"
+        for m in propias:
+            materia = self.materias.obtener(m.materia_id)
+            nombre = materia.nombre if materia else "eliminada"
+            nota = "  -  " if m.nota is None else f"{m.nota:5.2f}"
+            texto += f"{nombre:<26} {nota}  {m.estado()}\n"
+            if materia and m.estado() == "Aprobada":
+                creditos_aprobados += materia.creditos
+
+        promedio = self.promedio_de(id_estudiante)
+        texto += "-" * 52 + "\n"
+        texto += f"PROMEDIO: {promedio if promedio is not None else '-'}\n"
+        texto += f"CRÉDITOS APROBADOS: {creditos_aprobados}"
         return texto
 
-    def ventas_por_cliente(self):
-        """DICCIONARIO de LISTAS: {cliente_id: [ventas de ese cliente]}."""
+    def matriculas_por_estudiante(self):
+        """DICCIONARIO de LISTAS: {estudiante_id: [matrículas de ese estudiante]}."""
         agrupadas = {}
-        for venta in self.lista:
-            if venta.cliente_id not in agrupadas:
-                agrupadas[venta.cliente_id] = []
-            agrupadas[venta.cliente_id].append(venta)
+        for matricula in self.lista:
+            if matricula.estudiante_id not in agrupadas:
+                agrupadas[matricula.estudiante_id] = []
+            agrupadas[matricula.estudiante_id].append(matricula)
         return agrupadas
-
-    def total_vendido(self):
-        total = 0
-        for venta in self.lista:
-            total += venta.calcular_total()
-        return round(total, 2)
